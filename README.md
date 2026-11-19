@@ -10,5 +10,5 @@ docker build -t trustrag-ui .
 docker run -p 8080:80 -e API_UPSTREAM=http://host.docker.internal:8000 trustrag-ui
 ```
 
-`API_UPSTREAM` is the only setting: the gateway's internal URL.
+`API_UPSTREAM` is the only setting: the gateway's internal URL (no trailing slash). The gateway must exist when this container starts, otherwise nginx stops with "host not found in upstream".
 In Azure Container Apps this is `http://trustrag-gateway` (internal ingress); this app is the only one with a public URL.
