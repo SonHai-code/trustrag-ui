@@ -277,7 +277,7 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
               {answerBadge(m.meta)!.text}
             </span>
           )}
-          {!["knowledge", "knowledge_fallback", "chat"].includes(m.meta.answer_mode ?? "") && (
+          {!["knowledge", "knowledge_fallback", "chat", "web", "web_unavailable"].includes(m.meta.answer_mode ?? "") && (
             <span title="Điểm truy xuất top-1, chỉ là heuristic">độ liên quan {m.meta.confidence.toFixed(2)}</span>
           )}
           <span>
@@ -334,7 +334,9 @@ const STEP_LABELS: Record<string, string> = {
   retrieve: "Truy xuất",
   grade: "Chấm bằng chứng",
   rewrite: "Viết lại truy vấn",
+  web: "Tra cứu internet",
   select: "Chọn nguồn",
+  fallback: "Chuyển hướng",
   generate: "Sinh câu trả lời",
   verify: "Kiểm tra",
 };
@@ -360,11 +362,27 @@ function SourceCard({ c, active, onClick }: { c: Citation; active: boolean; onCl
     <div className={`source ${active ? "active" : ""}`} onClick={onClick}>
       <div className="source-head">
         <span className="cite static">{c.id}</span>
-        <strong>{c.doc_label}</strong> · Điều {c.article}
-        {c.article_title ? `. ${c.article_title}` : ""}
-        <span className="score">{c.score.toFixed(3)}</span>
+        {c.kind === "web" ? (
+          <>
+            <strong>{c.doc_label}</strong>
+            {c.article_title ? ` · ${c.article_title}` : ""}
+          </>
+        ) : (
+          <>
+            <strong>{c.doc_label}</strong> · Điều {c.article}
+            {c.article_title ? `. ${c.article_title}` : ""}
+          </>
+        )}
+        {c.kind !== "web" && <span className="score">{c.score.toFixed(3)}</span>}
       </div>
       {c.chapter && <div className="chapter">{c.chapter}</div>}
+      {c.kind === "web" && c.url && (
+        <div className="chapter">
+          <a href={c.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+            {c.url}
+          </a>
+        </div>
+      )}
       {active && <pre className="snippet">{c.snippet}</pre>}
     </div>
   );
@@ -375,6 +393,10 @@ function answerBadge(meta: ChatResponse): { cls: string; text: string; title: st
   switch (meta.answer_mode) {
     case "chat":
       return null;
+    case "web":
+      return { cls: "info", text: "Từ internet", title: "Dữ liệu tra cứu trực tiếp từ các trang web ở phần nguồn; có thể khác nhau giữa các nguồn, hãy kiểm tra thời điểm cập nhật" };
+    case "web_unavailable":
+      return { cls: "warn", text: "Không lấy được dữ liệu internet", title: "Cần dữ liệu hiện tại nhưng công cụ tra cứu không trả kết quả; trợ lý không đoán số liệu" };
     case "knowledge":
       return { cls: "info", text: "Kiến thức chung", title: "Không lấy từ tài liệu nên không có trích dẫn; hãy kiểm chứng nếu cần" };
     case "knowledge_fallback":

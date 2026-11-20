@@ -9,6 +9,8 @@ export interface Citation {
   clause: string;
   score: number;
   snippet: string;
+  kind?: "document" | "web"; // agent mode: a web source has a url and no article
+  url?: string;
 }
 
 export interface Latency {
@@ -43,8 +45,16 @@ export interface AgentInfo {
   tools: string;
 }
 
-/** How an agent answer was produced. Only "documents" and "mixed" carry citations. */
-export type AnswerMode = "documents" | "mixed" | "knowledge" | "knowledge_fallback" | "chat" | "refused";
+/** How an agent answer was produced. "documents", "mixed" and "web" carry citations. */
+export type AnswerMode =
+  | "documents"
+  | "mixed"
+  | "web"
+  | "knowledge"
+  | "knowledge_fallback"
+  | "web_unavailable"
+  | "chat"
+  | "refused";
 
 export interface ChatResponse {
   answer: string;
