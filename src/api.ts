@@ -1,4 +1,4 @@
-import type { ChatResponse, Citation, Health, SearchResponse } from "./types";
+import type { AgentStep, ChatResponse, Citation, Health, SearchResponse } from "./types";
 
 // dev: "/api" (proxied by vite.config.ts). Single-container build sets VITE_API_BASE="" (same origin).
 const BASE: string = import.meta.env.VITE_API_BASE ?? "/api";
@@ -49,6 +49,7 @@ export interface StreamHandlers {
   onSources: (sources: Citation[]) => void;
   onToken: (text: string) => void;
   onDone: (final: ChatResponse) => void;
+  onStep?: (step: AgentStep) => void; // agent mode only
 }
 
 /** POST + Server-Sent Events (EventSource only supports GET, so we parse the stream by hand). */
@@ -56,9 +57,10 @@ export async function chatStream(
   question: string,
   top_k: number,
   handlers: StreamHandlers,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  path = "/chat/stream" // agent mode passes "/agent/chat/stream"
 ): Promise<void> {
-  const res = await fetch(`${BASE}/chat/stream`, {
+  const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, top_k }),
@@ -82,6 +84,7 @@ export async function chatStream(
     const payload = JSON.parse(data.join("\n"));
     if (event === "sources") handlers.onSources(payload.sources);
     else if (event === "token") handlers.onToken(payload.text);
+    else if (event === "step") handlers.onStep?.(payload);
     else if (event === "done") handlers.onDone(payload);
     else if (event === "error") throw new Error(payload.detail ?? "Stream error");
   };
@@ -98,3 +101,6 @@ export async function chatStream(
     }
   }
 }
+
+export const agentStream = (question: string, top_k: number, handlers: StreamHandlers, signal?: AbortSignal) =>
+  chatStream(question, top_k, handlers, signal, "/agent/chat/stream");

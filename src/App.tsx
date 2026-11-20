@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { chat, chatStream, getHealth, search } from "./api";
-import type { ChatResponse, Citation, Health } from "./types";
+import { agentStream, chat, chatStream, getHealth, search } from "./api";
+import type { AgentStep, ChatResponse, Citation, Health } from "./types";
 
-type Mode = "chat" | "search";
+type Mode = "chat" | "agent" | "search";
 
 interface Message {
   id: number;
@@ -11,6 +11,7 @@ interface Message {
   citations?: Citation[]; // sources shown under the answer
   candidates?: boolean; // true while citations are only "retrieved so far" (streaming)
   meta?: ChatResponse;
+  steps?: AgentStep[]; // agent mode: what the agent did, in order
   searchMs?: number;
   error?: string;
   pending?: boolean;
@@ -68,7 +69,7 @@ export default function App() {
     setMessages((all) => [
       ...all,
       { id: userId, role: "user", text: q },
-      { id: answerId, role: "assistant", text: "", pending: true, animate: mode === "chat" && stream },
+      { id: answerId, role: "assistant", text: "", pending: true, animate: mode === "agent" || (mode === "chat" && stream) },
     ]);
     requestAnimationFrame(() => scrollToBottom(true));
     const controller = new AbortController();
@@ -78,18 +79,25 @@ export default function App() {
       if (mode === "search") {
         const res = await search(q, topK, controller.signal);
         patch(answerId, { text: `${res.results.length} đoạn liên quan nhất`, citations: res.results, searchMs: res.latency_ms, pending: false });
-      } else if (stream) {
+      } else if (mode === "agent" || stream) {
         let text = "";
-        await chatStream(
+        const steps: AgentStep[] = [];
+        const run = mode === "agent" ? agentStream : chatStream;
+        await run(
           q,
           topK,
           {
+            onStep: (step) => {
+              steps.push(step);
+              patch(answerId, { steps: [...steps] });
+            },
             onSources: (sources) => patch(answerId, { citations: sources, candidates: true }),
             onToken: (t) => {
               text += t;
               patch(answerId, { text });
             },
-            onDone: (final) => patch(answerId, { text: final.answer, citations: final.citations, candidates: false, meta: final, pending: false }),
+            onDone: (final) =>
+              patch(answerId, { text: final.answer, citations: final.citations, candidates: false, meta: final, pending: false, steps: final.agent?.steps ?? steps }),
           },
           controller.signal
         );
@@ -145,10 +153,11 @@ export default function App() {
         <div className="options">
           <div className="seg">
             <button className={mode === "chat" ? "on" : ""} onClick={() => setMode("chat")}>Hỏi đáp</button>
+            <button className={mode === "agent" ? "on" : ""} onClick={() => setMode("agent")} title="Agent tự định tuyến, chấm điểm bằng chứng, thử lại và kiểm tra câu trả lời">Agent</button>
             <button className={mode === "search" ? "on" : ""} onClick={() => setMode("search")}>Chỉ tìm kiếm</button>
           </div>
-          <label className={mode === "search" ? "disabled" : ""}>
-            <input type="checkbox" checked={stream} disabled={mode === "search"} onChange={(e) => setStream(e.target.checked)} /> Streaming
+          <label className={mode !== "chat" ? "disabled" : ""}>
+            <input type="checkbox" checked={mode === "chat" ? stream : mode === "agent"} disabled={mode !== "chat"} onChange={(e) => setStream(e.target.checked)} /> Streaming
           </label>
           <label>
             Top-k
@@ -240,6 +249,7 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
 
   return (
     <div className="msg assistant">
+      {!!m.steps?.length && <StepTrace steps={m.steps} open={!!m.pending} />}
       {m.error ? (
         <div className="error">⚠ {m.error}</div>
       ) : (
@@ -271,8 +281,14 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
           </span>
           <span>{m.meta.model}</span>
           {m.meta.retrieval_mode && <span>{m.meta.retrieval_mode}</span>}
+          {m.meta.cached && <span className="badge good" title="Trả lời từ bộ nhớ đệm của gateway">cache</span>}
+          {m.meta.agent?.verification?.status === "warning" && (
+            <span className="badge warn" title="Có trích dẫn sai hoặc số liệu không có trong nguồn">Cần kiểm chứng</span>
+          )}
+          {m.meta.agent && <span>{m.meta.agent.llm_calls} lần gọi LLM · công cụ: {m.meta.agent.tools || "?"}</span>}
         </div>
       )}
+      {m.meta && settled && <LatencyBreakdown latency={m.meta.latency_ms} />}
       {m.meta?.search_query && settled && (
         <div className="meta">
           <span>Truy vấn tìm kiếm: {m.meta.search_query}</span>
@@ -288,6 +304,49 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The agent's visible reasoning: one line per graph step with its duration. Open while running, collapsed after. */
+function StepTrace({ steps, open }: { steps: AgentStep[]; open: boolean }) {
+  return (
+    <details className="steps" open={open}>
+      <summary>Quá trình xử lý · {steps.length} bước · {Math.round(steps.reduce((t, s) => t + s.ms, 0))} ms</summary>
+      <ol>
+        {steps.map((s, i) => (
+          <li key={i}>
+            <b>{STEP_LABELS[s.node] ?? s.node}</b> {s.summary}
+            {s.ms > 0 && <span className="ms">{Math.round(s.ms)} ms</span>}
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+const STEP_LABELS: Record<string, string> = {
+  plan: "Lập kế hoạch",
+  retrieve: "Truy xuất",
+  grade: "Chấm bằng chứng",
+  rewrite: "Viết lại truy vấn",
+  select: "Chọn nguồn",
+  generate: "Sinh câu trả lời",
+  verify: "Kiểm tra",
+};
+
+/** Where the time went: first token, then every stage the server measured. This is what you tune against. */
+function LatencyBreakdown({ latency }: { latency: ChatResponse["latency_ms"] }) {
+  const stages = Object.entries(latency.stages ?? {});
+  if (latency.ttft_ms == null && !stages.length) return null;
+  return (
+    <div className="meta">
+      {latency.ttft_ms != null && <span title="Từ lúc gửi đến token đầu tiên">token đầu {Math.round(latency.ttft_ms)} ms</span>}
+      {stages.map(([k, v]) => (
+        <span key={k}>
+          {k.replace(/_ms$/, "")} {Math.round(v)} ms
+        </span>
+      ))}
     </div>
   );
 }
@@ -311,6 +370,8 @@ function refusalText(reason: string | null): string {
   switch (reason) {
     case "low_retrieval_score":
       return "Ngoài phạm vi tài liệu";
+    case "insufficient_evidence":
+      return "Không đủ bằng chứng";
     case "model_declined":
       return "Không tìm thấy thông tin";
     case "no_citation":

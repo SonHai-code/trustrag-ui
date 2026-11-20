@@ -15,6 +15,32 @@ export interface Latency {
   retrieval_ms: number;
   generation_ms: number;
   total_ms: number;
+  ttft_ms?: number | null; // time to first token (streaming)
+  stages?: Record<string, number>; // embed_ms / vector_ms / rerank_ms (chat) or plan_ms / retrieve_ms / ... (agent)
+}
+
+/** One step of the agent graph (plan, retrieve, grade, rewrite, select, generate, verify). */
+export interface AgentStep {
+  node: string;
+  summary: string;
+  ms: number;
+}
+
+export interface Verification {
+  status: "ok" | "warning";
+  cited: number[];
+  invalid_markers: number[];
+  unsupported_numbers: string[];
+}
+
+export interface AgentInfo {
+  route: string | null;
+  attempts: number;
+  queries: string[];
+  steps: AgentStep[];
+  verification: Verification | null;
+  llm_calls: number;
+  tools: string;
 }
 
 export interface ChatResponse {
@@ -28,6 +54,8 @@ export interface ChatResponse {
   search_query: string | null;
   latency_ms: Latency;
   model: string;
+  cached?: boolean; // replayed from the gateway's answer cache
+  agent?: AgentInfo; // only in agent mode
 }
 
 export interface SearchResponse {
