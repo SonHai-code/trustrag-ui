@@ -513,6 +513,9 @@ function answerBadge(meta: ChatResponse): { cls: string; text: string; title: st
     case "web":
       return { cls: "info", text: "Từ internet", title: "Dữ liệu tra cứu trực tiếp từ các trang web ở phần nguồn; có thể khác nhau giữa các nguồn, hãy kiểm tra thời điểm cập nhật" };
     case "web_unavailable":
+      if (meta.agent?.web_note === "no_location") {
+        return { cls: "info", text: "Cần thêm địa điểm", title: "Câu hỏi thời tiết chưa nói rõ địa điểm nên trợ lý hỏi lại, không đoán" };
+      }
       return { cls: "warn", text: "Không lấy được dữ liệu internet", title: "Cần dữ liệu hiện tại nhưng công cụ tra cứu không trả kết quả; trợ lý không đoán số liệu" };
     case "knowledge":
       return { cls: "info", text: "Kiến thức chung", title: "Không lấy từ tài liệu nên không có trích dẫn; hãy kiểm chứng nếu cần" };

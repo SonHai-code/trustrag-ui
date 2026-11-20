@@ -90,6 +90,7 @@ export interface AgentInfo {
   guard?: { verdict: string; reason?: string; output_leak?: boolean };
   standalone_question?: string | null; // a follow-up rewritten using the conversation history
   history_messages?: number; // earlier messages the agent was given
+  web_note?: string; // "no_location" | "error" | "empty" | "": why the internet lookup gave nothing
 }
 
 export interface HistoryMessage {
