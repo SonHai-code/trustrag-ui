@@ -363,6 +363,7 @@ function CallView({ call }: { call: TraceCall }) {
       <pre className="trace-pre">{call.prompt}</pre>
       <div className="kv"><b>Trả về:</b></div>
       <pre className="trace-pre">{call.error ? `Lỗi: ${call.error}` : call.reply || "(rỗng)"}</pre>
+      {call.note && <div className="kv bad">⚠ {call.note}</div>}
       {!!call.history_messages && <div className="kv">kèm {call.history_messages} tin nhắn trước đó của cuộc trò chuyện</div>}
     </details>
   );

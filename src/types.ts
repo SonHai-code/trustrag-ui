@@ -44,6 +44,7 @@ export interface LlmCall {
   prompt: string; // the user-side prompt, clipped (system prompts are not shown)
   reply: string;
   history_messages?: number;
+  note?: string; // e.g. the fast model was rejected and the main model answered instead
   error?: string;
 }
 
