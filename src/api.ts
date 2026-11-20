@@ -73,6 +73,7 @@ export async function chatStream(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let finished = false;
 
   const dispatch = (block: string) => {
     let event = "message";
@@ -86,7 +87,10 @@ export async function chatStream(
     if (event === "sources") handlers.onSources(payload.sources);
     else if (event === "token") handlers.onToken(payload.text);
     else if (event === "step") handlers.onStep?.(payload);
-    else if (event === "done") handlers.onDone(payload);
+    else if (event === "done") {
+      finished = true;
+      handlers.onDone(payload);
+    }
     else if (event === "error") throw new Error(payload.detail ?? "Stream error");
   };
 
@@ -101,6 +105,8 @@ export async function chatStream(
       if (block.trim()) dispatch(block);
     }
   }
+  // the connection closed without a final answer (server crash, proxy timeout): say so instead of freezing silently
+  if (!finished) throw new Error("Kết nối bị ngắt trước khi có câu trả lời. Vui lòng thử lại.");
 }
 
 export const agentStream = (
