@@ -272,10 +272,14 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
 
       {m.meta && settled && (
         <div className="meta">
-          <span className={`badge ${m.meta.grounded ? "good" : "warn"}`}>
-            {m.meta.grounded ? "Có trích dẫn" : refusalText(m.meta.refusal_reason)}
-          </span>
-          <span title="Điểm truy xuất top-1, chỉ là heuristic">độ liên quan {m.meta.confidence.toFixed(2)}</span>
+          {answerBadge(m.meta) && (
+            <span className={`badge ${answerBadge(m.meta)!.cls}`} title={answerBadge(m.meta)!.title}>
+              {answerBadge(m.meta)!.text}
+            </span>
+          )}
+          {!["knowledge", "knowledge_fallback", "chat"].includes(m.meta.answer_mode ?? "") && (
+            <span title="Điểm truy xuất top-1, chỉ là heuristic">độ liên quan {m.meta.confidence.toFixed(2)}</span>
+          )}
           <span>
             {Math.round(m.meta.latency_ms.total_ms)} ms (tìm {Math.round(m.meta.latency_ms.retrieval_ms)} · sinh {Math.round(m.meta.latency_ms.generation_ms)})
           </span>
@@ -364,6 +368,24 @@ function SourceCard({ c, active, onClick }: { c: Citation; active: boolean; onCl
       {active && <pre className="snippet">{c.snippet}</pre>}
     </div>
   );
+}
+
+/** The label that tells the reader where the answer came from (documents with citations vs. the model's own knowledge). */
+function answerBadge(meta: ChatResponse): { cls: string; text: string; title: string } | null {
+  switch (meta.answer_mode) {
+    case "chat":
+      return null;
+    case "knowledge":
+      return { cls: "info", text: "Kiến thức chung", title: "Không lấy từ tài liệu nên không có trích dẫn; hãy kiểm chứng nếu cần" };
+    case "knowledge_fallback":
+      return { cls: "warn", text: "Không có trong tài liệu · kiến thức chung", title: "Đã tra cứu tài liệu nhưng không thấy nội dung phù hợp; câu trả lời dựa trên kiến thức của mô hình, chưa được kiểm chứng" };
+    case "mixed":
+      return { cls: "good", text: "Có trích dẫn + bổ sung ngoài tài liệu", title: "Phần có [số] lấy từ tài liệu; đoạn 💡 cuối là kiến thức chung, chưa được kiểm chứng" };
+    default:
+      return meta.grounded
+        ? { cls: "good", text: "Có trích dẫn", title: "" }
+        : { cls: "warn", text: refusalText(meta.refusal_reason), title: "" };
+  }
 }
 
 function refusalText(reason: string | null): string {

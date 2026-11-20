@@ -43,6 +43,9 @@ export interface AgentInfo {
   tools: string;
 }
 
+/** How an agent answer was produced. Only "documents" and "mixed" carry citations. */
+export type AnswerMode = "documents" | "mixed" | "knowledge" | "knowledge_fallback" | "chat" | "refused";
+
 export interface ChatResponse {
   answer: string;
   grounded: boolean;
@@ -56,6 +59,7 @@ export interface ChatResponse {
   model: string;
   cached?: boolean; // replayed from the gateway's answer cache
   agent?: AgentInfo; // only in agent mode
+  answer_mode?: AnswerMode; // only in agent mode
 }
 
 export interface SearchResponse {
