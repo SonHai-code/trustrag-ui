@@ -1,4 +1,4 @@
-import type { AgentStep, ChatResponse, Citation, Health, SearchResponse } from "./types";
+import type { AgentStep, ChatResponse, Citation, Health, HistoryMessage, SearchResponse } from "./types";
 
 // dev: "/api" (proxied by vite.config.ts). Single-container build sets VITE_API_BASE="" (same origin).
 const BASE: string = import.meta.env.VITE_API_BASE ?? "/api";
@@ -58,12 +58,13 @@ export async function chatStream(
   top_k: number,
   handlers: StreamHandlers,
   signal?: AbortSignal,
-  path = "/chat/stream" // agent mode passes "/agent/chat/stream"
+  path = "/chat/stream", // agent mode passes "/agent/chat/stream"
+  history: HistoryMessage[] = [] // agent mode: earlier turns; the agent keeps no state of its own
 ): Promise<void> {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, top_k }),
+    body: JSON.stringify(history.length ? { question, top_k, history } : { question, top_k }),
     signal,
   });
   if (!res.ok) return fail(res);
@@ -102,5 +103,10 @@ export async function chatStream(
   }
 }
 
-export const agentStream = (question: string, top_k: number, handlers: StreamHandlers, signal?: AbortSignal) =>
-  chatStream(question, top_k, handlers, signal, "/agent/chat/stream");
+export const agentStream = (
+  question: string,
+  top_k: number,
+  handlers: StreamHandlers,
+  signal?: AbortSignal,
+  history: HistoryMessage[] = []
+) => chatStream(question, top_k, handlers, signal, "/agent/chat/stream", history);

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { agentStream, chat, chatStream, getHealth, search } from "./api";
-import type { AgentStep, ChatResponse, Citation, Health } from "./types";
+import type { StreamHandlers } from "./api";
+import { Markdown } from "./Markdown";
+import type { AgentInfo, AgentStep, ChatResponse, Citation, Health, HistoryMessage, TraceCall } from "./types";
 
 type Mode = "chat" | "agent" | "search";
 
@@ -25,6 +27,22 @@ const EXAMPLES = [
 ];
 
 let nextId = 1;
+
+const MAX_HISTORY = 12; // messages (6 turns) sent to the agent with each question
+
+/** Conversation memory: the agent keeps no state, so every question carries the earlier turns. Failed, refused-by-guard
+ *  and search-only turns are left out (they are not part of the conversation the model should follow). */
+function buildHistory(all: Message[]): HistoryMessage[] {
+  const out: HistoryMessage[] = [];
+  for (let i = 0; i + 1 < all.length; i += 2) {
+    const u = all[i];
+    const a = all[i + 1];
+    if (u.role !== "user" || a.role !== "assistant" || a.error || a.pending || !a.text.trim()) continue;
+    if (a.searchMs != null || a.meta?.answer_mode === "blocked") continue;
+    out.push({ role: "user", content: u.text }, { role: "assistant", content: a.text });
+  }
+  return out.slice(-MAX_HISTORY);
+}
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -61,6 +79,7 @@ export default function App() {
   async function send(question: string) {
     const q = question.trim();
     if (q.length < 3 || busy) return;
+    const history = mode === "agent" ? buildHistory(messages) : [];
     setInput("");
     setBusy(true);
     // Ids must be created OUTSIDE the state updater: React StrictMode runs updaters twice in dev.
@@ -82,11 +101,7 @@ export default function App() {
       } else if (mode === "agent" || stream) {
         let text = "";
         const steps: AgentStep[] = [];
-        const run = mode === "agent" ? agentStream : chatStream;
-        await run(
-          q,
-          topK,
-          {
+        const handlers: StreamHandlers = {
             onStep: (step) => {
               steps.push(step);
               patch(answerId, { steps: [...steps] });
@@ -98,9 +113,9 @@ export default function App() {
             },
             onDone: (final) =>
               patch(answerId, { text: final.answer, citations: final.citations, candidates: false, meta: final, pending: false, steps: final.agent?.steps ?? steps }),
-          },
-          controller.signal
-        );
+        };
+        if (mode === "agent") await agentStream(q, topK, handlers, controller.signal, history);
+        else await chatStream(q, topK, handlers, controller.signal);
       } else {
         const res = await chat(q, topK, controller.signal);
         patch(answerId, { text: res.answer, citations: res.citations, meta: res, pending: false });
@@ -153,7 +168,7 @@ export default function App() {
         <div className="options">
           <div className="seg">
             <button className={mode === "chat" ? "on" : ""} onClick={() => setMode("chat")}>Hỏi đáp</button>
-            <button className={mode === "agent" ? "on" : ""} onClick={() => setMode("agent")} title="Agent tự định tuyến, chấm điểm bằng chứng, thử lại và kiểm tra câu trả lời">Agent</button>
+            <button className={mode === "agent" ? "on" : ""} onClick={() => setMode("agent")} title="Agent tự định tuyến, chấm điểm bằng chứng, thử lại, kiểm tra câu trả lời và nhớ cuộc trò chuyện (6 lượt gần nhất)">Agent</button>
             <button className={mode === "search" ? "on" : ""} onClick={() => setMode("search")}>Chỉ tìm kiếm</button>
           </div>
           <label className={mode !== "chat" ? "disabled" : ""}>
@@ -244,30 +259,21 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
   }
 
   const cited = new Set((m.citations ?? []).map((c) => c.id));
-  const parts = display.split(/(\[\d+\])/g);
   const settled = !m.pending && !typing; // details appear once the text has finished
 
   return (
     <div className="msg assistant">
-      {!!m.steps?.length && <StepTrace steps={m.steps} open={!!m.pending} />}
+      {!!m.steps?.length && <StepTrace steps={m.steps} agent={m.meta?.agent} open={!!m.pending} />}
       {m.error ? (
         <div className="error">⚠ {m.error}</div>
       ) : (
-        <p className="answer">
-          {parts.map((part, i) => {
-            const match = part.match(/^\[(\d+)\]$/);
-            const id = match ? Number(match[1]) : null;
-            if (id != null && cited.has(id)) {
-              return (
-                <button key={i} className={`cite ${active === id ? "on" : ""}`} onClick={() => setActive(active === id ? null : id)}>
-                  {id}
-                </button>
-              );
-            }
-            return <span key={i}>{part}</span>;
-          })}
-          {(m.pending || typing) && <span className="caret" />}
-        </p>
+        <div className="answer">
+          <Markdown
+            text={display}
+            typing={!!m.pending || typing}
+            cite={{ cited, active, onCite: (id) => setActive(active === id ? null : id) }}
+          />
+        </div>
       )}
 
       {m.meta && settled && (
@@ -277,7 +283,7 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
               {answerBadge(m.meta)!.text}
             </span>
           )}
-          {!["knowledge", "knowledge_fallback", "chat", "web", "web_unavailable"].includes(m.meta.answer_mode ?? "") && (
+          {!["knowledge", "knowledge_fallback", "chat", "web", "web_unavailable", "blocked"].includes(m.meta.answer_mode ?? "") && (
             <span title="Điểm truy xuất top-1, chỉ là heuristic">độ liên quan {m.meta.confidence.toFixed(2)}</span>
           )}
           <span>
@@ -312,24 +318,132 @@ function MessageView({ message: m, onGrow }: { message: Message; onGrow: () => v
   );
 }
 
-/** The agent's visible reasoning: one line per graph step with its duration. Open while running, collapsed after. */
-function StepTrace({ steps, open }: { steps: AgentStep[]; open: boolean }) {
+const short = (v: unknown) => {
+  const t = typeof v === "string" ? JSON.stringify(v) : JSON.stringify(v) ?? String(v);
+  return t.length > 80 ? `${t.slice(0, 80)}…` : t;
+};
+
+/** get_weather(location="hà nội", days=2): what the agent asked the tool, readable at a glance. */
+const fmtArgs = (name: string, args: Record<string, unknown>) =>
+  `${name}(${Object.entries(args)
+    .filter(([, v]) => v !== null && v !== undefined)
+    .map(([k, v]) => `${k}=${short(v)}`)
+    .join(", ")})`;
+
+function CallView({ call }: { call: TraceCall }) {
+  if (call.type === "tool") {
+    return (
+      <details className={`call ${call.ok ? "" : "failed"}`}>
+        <summary>
+          <span className="tag tool">công cụ</span> <code>{fmtArgs(call.name, call.args)}</code>{" "}
+          <span className={call.ok ? "okmark" : "badmark"}>{call.ok ? "✓" : "✗"}</span>
+          <span className="ms">
+            {Math.round(call.ms)} ms{call.backend ? ` · ${call.backend}` : ""}
+          </span>
+        </summary>
+        {call.ok ? (
+          <>
+            <div className="kv"><b>Kết quả:</b> {call.result}</div>
+            {call.preview && <pre className="trace-pre">{call.preview}</pre>}
+          </>
+        ) : (
+          <div className="kv bad"><b>Lỗi:</b> {call.error}</div>
+        )}
+      </details>
+    );
+  }
+  return (
+    <details className={`call ${call.ok ? "" : "failed"}`}>
+      <summary>
+        <span className="tag llm">LLM</span> {call.purpose} · {call.model}{" "}
+        <span className={call.ok ? "okmark" : "badmark"}>{call.ok ? "✓" : "✗"}</span>
+        <span className="ms">{Math.round(call.ms)} ms</span>
+      </summary>
+      <div className="kv"><b>Gửi đi:</b></div>
+      <pre className="trace-pre">{call.prompt}</pre>
+      <div className="kv"><b>Trả về:</b></div>
+      <pre className="trace-pre">{call.error ? `Lỗi: ${call.error}` : call.reply || "(rỗng)"}</pre>
+      {!!call.history_messages && <div className="kv">kèm {call.history_messages} tin nhắn trước đó của cuộc trò chuyện</div>}
+    </details>
+  );
+}
+
+function StepDetail({ step }: { step: AgentStep }) {
+  const d = step.decision;
+  if (!d && !step.calls?.length) return null;
+  return (
+    <div className="detail">
+      {d && (
+        <div className="kv decision">
+          <b>Quyết định:</b>{" "}
+          {d.route && <span className="tag route">{d.route}</span>}
+          {d.by && <span className="tag by">{d.by === "llm" ? "bởi LLM" : "bởi quy tắc"}</span>}
+          {d.tool !== undefined && (
+            <span>
+              {" "}công cụ tiếp theo: <code>{d.tool ?? "không gọi công cụ"}</code>
+            </span>
+          )}
+          {d.why && <div>Lý do: {d.why}</div>}
+          {d.rewritten && (
+            <div>
+              «{d.from}» → «{d.to}»
+            </div>
+          )}
+        </div>
+      )}
+      {step.calls?.map((c, i) => <CallView key={i} call={c} />)}
+    </div>
+  );
+}
+
+/** The agent's visible reasoning, for debugging: one line per graph step with its duration; each step expands to
+ *  WHY it went that way (rule or LLM, which tool is next) and every tool / LLM call it made with arguments and results. */
+function StepTrace({ steps, agent, open }: { steps: AgentStep[]; agent?: AgentInfo; open: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const notes: string[] = [];
+  if (agent?.history_messages) notes.push(`nhớ ${agent.history_messages} tin nhắn trước`);
+  if (agent?.guard && agent.guard.verdict !== "ok") notes.push(`an toàn: ${agent.guard.verdict}`);
+  if (agent?.guard?.output_leak) notes.push("đã chặn rò rỉ chỉ dẫn hệ thống");
+  const copy = () => {
+    navigator.clipboard
+      ?.writeText(JSON.stringify({ route: agent?.route, guard: agent?.guard, standalone_question: agent?.standalone_question, steps }, null, 2))
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => undefined);
+  };
   return (
     <details className="steps" open={open}>
-      <summary>Quá trình xử lý · {steps.length} bước · {Math.round(steps.reduce((t, s) => t + s.ms, 0))} ms</summary>
+      <summary>
+        Quá trình xử lý · {steps.length} bước · {Math.round(steps.reduce((t, s) => t + s.ms, 0))} ms
+        {notes.length > 0 && <span className="notes"> · {notes.join(" · ")}</span>}
+      </summary>
+      {agent?.standalone_question && (
+        <div className="kv">Câu hỏi sau khi ghép với ngữ cảnh: <i>{agent.standalone_question}</i></div>
+      )}
       <ol>
         {steps.map((s, i) => (
           <li key={i}>
             <b>{STEP_LABELS[s.node] ?? s.node}</b> {s.summary}
             {s.ms > 0 && <span className="ms">{Math.round(s.ms)} ms</span>}
+            <StepDetail step={s} />
           </li>
         ))}
       </ol>
+      {!open && (
+        <button className="link small" onClick={copy} title="Sao chép toàn bộ trace dạng JSON để gửi khi báo lỗi">
+          {copied ? "Đã sao chép" : "Sao chép trace (JSON)"}
+        </button>
+      )}
     </details>
   );
 }
 
 const STEP_LABELS: Record<string, string> = {
+  guard: "Kiểm tra an toàn",
+  contextualize: "Nhớ hội thoại",
+  output_check: "Kiểm tra đầu ra",
   plan: "Lập kế hoạch",
   retrieve: "Truy xuất",
   grade: "Chấm bằng chứng",
@@ -393,6 +507,8 @@ function answerBadge(meta: ChatResponse): { cls: string; text: string; title: st
   switch (meta.answer_mode) {
     case "chat":
       return null;
+    case "blocked":
+      return { cls: "warn", text: "Đã từ chối (an toàn)", title: "Yêu cầu bị chặn bởi lớp bảo vệ: có dấu hiệu tấn công prompt hoặc đòi hướng dẫn gây hại" };
     case "web":
       return { cls: "info", text: "Từ internet", title: "Dữ liệu tra cứu trực tiếp từ các trang web ở phần nguồn; có thể khác nhau giữa các nguồn, hãy kiểm tra thời điểm cập nhật" };
     case "web_unavailable":

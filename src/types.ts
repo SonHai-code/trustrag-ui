@@ -21,11 +21,54 @@ export interface Latency {
   stages?: Record<string, number>; // embed_ms / vector_ms / rerank_ms (chat) or plan_ms / retrieve_ms / ... (agent)
 }
 
-/** One step of the agent graph (plan, retrieve, grade, rewrite, select, generate, verify). */
+/** A tool the agent called (an MCP tool): what it was asked and what came back. */
+export interface ToolCall {
+  type: "tool";
+  name: string;
+  args: Record<string, unknown>;
+  ok: boolean;
+  ms: number;
+  backend?: string; // "mcp" | "http"
+  result?: string; // one-line summary of what the tool returned
+  preview?: string; // compact JSON of the result (passage texts left out)
+  error?: string;
+}
+
+/** A call to the language model made during a step (router, grading, rewriting, memory, the answer itself). */
+export interface LlmCall {
+  type: "llm";
+  purpose: string; // router | grade | rewrite | contextualize | answer·documents | answer·web | answer·knowledge
+  model: string;
+  ok: boolean;
+  ms: number;
+  prompt: string; // the user-side prompt, clipped (system prompts are not shown)
+  reply: string;
+  history_messages?: number;
+  error?: string;
+}
+
+export type TraceCall = ToolCall | LlmCall;
+
+/** Why a step went the way it did (plan: which route, decided by rules or by the LLM, which tool comes next). */
+export interface Decision {
+  route?: string;
+  by?: "rules" | "llm";
+  why?: string;
+  tool?: string | null;
+  router_intent?: string | null;
+  verdict?: string; // guard
+  rewritten?: boolean; // contextualize
+  from?: string;
+  to?: string;
+}
+
+/** One step of the agent graph (guard, contextualize, plan, web, retrieve, grade, rewrite, select, generate, verify). */
 export interface AgentStep {
   node: string;
   summary: string;
   ms: number;
+  decision?: Decision;
+  calls?: TraceCall[];
 }
 
 export interface Verification {
@@ -43,6 +86,14 @@ export interface AgentInfo {
   verification: Verification | null;
   llm_calls: number;
   tools: string;
+  guard?: { verdict: string; reason?: string; output_leak?: boolean };
+  standalone_question?: string | null; // a follow-up rewritten using the conversation history
+  history_messages?: number; // earlier messages the agent was given
+}
+
+export interface HistoryMessage {
+  role: "user" | "assistant";
+  content: string;
 }
 
 /** How an agent answer was produced. "documents", "mixed" and "web" carry citations. */
@@ -54,7 +105,8 @@ export type AnswerMode =
   | "knowledge_fallback"
   | "web_unavailable"
   | "chat"
-  | "refused";
+  | "refused"
+  | "blocked";
 
 export interface ChatResponse {
   answer: string;

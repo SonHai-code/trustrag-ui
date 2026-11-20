@@ -19,7 +19,7 @@ main { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: 
 .msg { max-width: 88%; border-radius: 14px; padding: 10px 14px; line-height: 1.55; font-size: 15px; }
 .msg.user { align-self: flex-end; background: var(--accent); color: #fff; white-space: pre-wrap; }
 .msg.assistant { align-self: flex-start; background: var(--card); border: 1px solid var(--line); width: 88%; }
-.answer { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.answer { margin: 0; overflow-wrap: anywhere; }
 .error { color: var(--bad); }
 .caret { display: inline-block; width: 7px; height: 15px; background: var(--muted); margin-left: 2px; vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
@@ -54,3 +54,39 @@ form button:disabled { opacity: .45; cursor: default; } form button.stop { backg
 .steps ol { margin: 6px 0 2px; padding-left: 18px; }
 .steps li { margin: 2px 0; line-height: 1.4; } .steps li b { color: var(--text); font-weight: 600; }
 .steps .ms { margin-left: 6px; font-variant-numeric: tabular-nums; opacity: .8; }
+
+/* ---- trace details (for debugging) ---- */
+.steps .notes { font-weight: 400; }
+.steps .detail { margin: 3px 0 6px; padding-left: 4px; }
+.steps .kv { margin: 3px 0; font-size: 12px; line-height: 1.45; }
+.steps .kv.bad { color: var(--bad); }
+.steps .kv.decision > div { margin-top: 2px; }
+.steps code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; color: var(--text); background: #eceff5; padding: 0 4px; border-radius: 4px; }
+.steps .tag { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 0 6px; border-radius: 99px; margin-right: 4px; background: #e8eefc; color: #3558b8; }
+.steps .tag.tool { background: #e3f5ec; color: var(--good); } .steps .tag.llm { background: #f1e8fc; color: #6b3fb0; } .steps .tag.by { background: #eceff5; color: var(--muted); }
+.steps details.call { margin: 3px 0; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+.steps details.call.failed { border-color: #efc2bc; }
+.steps details.call > summary { font-weight: 400; }
+.steps .okmark { color: var(--good); font-weight: 700; } .steps .badmark { color: var(--bad); font-weight: 700; }
+.steps .trace-pre { margin: 3px 0; padding: 6px 8px; background: var(--bg); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--text); }
+.link.small { margin: 4px 0 0; font-size: 12px; text-decoration: underline; }
+
+/* ---- rendered markdown ---- */
+.md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+.md p { margin: 0 0 .65em; }
+.md h2, .md h3, .md h4, .md h5, .md h6 { margin: .9em 0 .35em; line-height: 1.3; }
+.md h2 { font-size: 18px; } .md h3 { font-size: 16.5px; } .md h4, .md h5, .md h6 { font-size: 15px; }
+.md ul, .md ol { margin: 0 0 .65em; padding-left: 1.4em; }
+.md li { margin: .15em 0; } .md li > p { margin: 0 0 .3em; } .md li > p:last-child { margin-bottom: 0; } .md li > ul, .md li > ol { margin: .2em 0 .2em; }
+.md blockquote { margin: 0 0 .65em; padding: .1em .9em; border-left: 3px solid var(--line); color: var(--muted); }
+.md hr { border: none; border-top: 1px solid var(--line); margin: .9em 0; }
+.md a { color: var(--accent); }
+.md code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; background: #eef0f5; padding: .1em .35em; border-radius: 4px; }
+.md pre.md-code { margin: 0 0 .75em; padding: 10px 12px; background: #1e2430; color: #e8ecf4; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+.md pre.md-code code { background: none; padding: 0; color: inherit; font-size: inherit; white-space: pre; }
+.md-table { overflow-x: auto; margin: 0 0 .75em; }
+.md table { border-collapse: collapse; font-size: 14px; min-width: 60%; }
+.md th, .md td { border: 1px solid var(--line); padding: 5px 10px; vertical-align: top; }
+.md th { background: var(--bg); font-weight: 600; text-align: left; }
+.md.typing > :last-child::after { content: ""; display: inline-block; width: 7px; height: 15px; background: var(--muted); margin-left: 3px; vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
+.md.typing:empty::after { content: ""; display: inline-block; width: 7px; height: 15px; background: var(--muted); animation: blink 1s steps(2) infinite; }
