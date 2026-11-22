@@ -405,6 +405,7 @@ function StepTrace({ steps, agent, open }: { steps: AgentStep[]; agent?: AgentIn
   if (agent?.history_messages) notes.push(`nhớ ${agent.history_messages} tin nhắn trước`);
   if (agent?.guard && agent.guard.verdict !== "ok") notes.push(`an toàn: ${agent.guard.verdict}`);
   if (agent?.guard?.output_leak) notes.push("đã chặn rò rỉ chỉ dẫn hệ thống");
+  if (agent?.skills?.length) notes.push(`kỹ năng: ${agent.skills.join(", ")}`);
   const copy = () => {
     navigator.clipboard
       ?.writeText(JSON.stringify({ route: agent?.route, guard: agent?.guard, standalone_question: agent?.standalone_question, steps }, null, 2))
@@ -444,6 +445,7 @@ function StepTrace({ steps, agent, open }: { steps: AgentStep[]; agent?: AgentIn
 const STEP_LABELS: Record<string, string> = {
   guard: "Kiểm tra an toàn",
   contextualize: "Nhớ hội thoại",
+  skills: "Kỹ năng",
   output_check: "Kiểm tra đầu ra",
   plan: "Lập kế hoạch",
   retrieve: "Truy xuất",
