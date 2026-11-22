@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as api from "./api";
 import type { StreamHandlers } from "./api";
@@ -75,7 +76,7 @@ function Workspace() {
   const [loadingConv, setLoadingConv] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<Mode>((me.settings?.mode as Mode) ?? "chat");
+  const [mode, setMode] = useState<Mode>((me.settings?.mode as Mode) ?? "agent");
   const [stream, setStream] = useState(me.settings?.stream ?? true);
   const [topK, setTopK] = useState(me.settings?.topK ?? 5);
   const [theme, setThemeState] = useState<Theme>((me.settings?.theme ?? (lsGet("trustrag.theme") as Theme)) || "system");
@@ -346,7 +347,7 @@ function Workspace() {
 
       <div className="chat">
         <header className="topbar">
-          <button className="ghost icon menu-btn" onClick={() => setDrawer(true)} aria-label="Mở danh sách trò chuyện">☰</button>
+          <button className="ghost icon menu-btn" onClick={() => setDrawer(true)} aria-label="Mở danh sách trò chuyện"><Icon name="menu" size={18} /></button>
           <div className="topbar-title">
             <h1>{active?.title ?? "Cuộc trò chuyện mới"}</h1>
             <p className="muted">Tra cứu văn bản pháp luật có trích dẫn nguồn</p>
@@ -393,7 +394,7 @@ function Workspace() {
             )}
             {messages.map((m) => <MessageView key={m.id} message={m} onGrow={scrollToBottom} />)}
           </div>
-          {showJump && <button className="jump" onClick={() => scrollToBottom(true)} aria-label="Xuống cuối">↓</button>}
+          {showJump && <button className="jump" onClick={() => scrollToBottom(true)} aria-label="Xuống cuối"><Icon name="down" size={18} /></button>}
         </main>
 
         <footer className="composer">
@@ -414,9 +415,9 @@ function Workspace() {
                 }}
               />
               {busy ? (
-                <button type="button" className="send stop" onClick={stop} aria-label="Dừng">■</button>
+                <button type="button" className="send stop" onClick={stop} aria-label="Dừng"><Icon name="stop" size={14} /></button>
               ) : (
-                <button type="submit" className="send" disabled={input.trim().length < 3 || loadingConv} aria-label="Gửi">↑</button>
+                <button type="submit" className="send" disabled={input.trim().length < 3 || loadingConv} aria-label="Gửi"><Icon name="up" size={18} /></button>
               )}
             </form>
             <div className="composer-foot">

@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
@@ -17,7 +18,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
       <div className={`modal ${wide ? "wide" : ""}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref}>
         <div className="modal-head">
           <h2>{title}</h2>
-          <button className="ghost icon" onClick={onClose} aria-label="Đóng">✕</button>
+          <button className="ghost icon" onClick={onClose} aria-label="Đóng"><Icon name="close" /></button>
         </div>
         <div className="modal-body">{children}</div>
       </div>

@@ -274,3 +274,15 @@ select option { font-size: 13px; background: var(--card); color: var(--text); }
 .seg button { padding: 5px 11px; }
 .status { padding: 5px 8px; }
 @media (max-width: 820px) { .model-select { max-width: none; } }
+
+/* ---- one type scale for all controls (the same font, the same sizes) ---- */
+button, input, select, textarea { font-family: inherit; }
+.primary, .user-menu button, .user-btn, .tabs button, .ghost, .example, .danger-btn { font-size: 14px; }
+.ghost.small, .badge { font-size: 12.5px; }
+.icon-svg { flex: none; display: block; }
+.primary, .user-menu button, .ghost, .actions button { display: inline-flex; align-items: center; gap: 8px; }
+.primary.new { width: 100%; justify-content: flex-start; }
+.ghost.icon { justify-content: center; }
+.send, .jump { display: grid; place-items: center; padding: 0; }
+.pin { display: inline-flex; color: var(--muted); }
+.who b { font-size: 14px; } .who small { font-size: 12px; }

@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Markdown } from "./Markdown";
 import type { AgentInfo, AgentStep, ChatResponse, Citation, Message, TraceCall } from "./types";
@@ -115,7 +116,7 @@ export function MessageView({ message: m, onGrow }: { message: Message; onGrow: 
       )}
       {settled && !m.error && m.text && (
         <div className="actions">
-          <button className="ghost small" onClick={copyAnswer} title="Sao chép câu trả lời">{copied ? "Đã sao chép ✓" : "Sao chép"}</button>
+          <button className="ghost small" onClick={copyAnswer} title="Sao chép câu trả lời"><Icon name={copied ? "check" : "copy"} size={13} /> {copied ? "Đã sao chép" : "Sao chép"}</button>
         </div>
       )}
     </div>
@@ -141,7 +142,7 @@ function CallView({ call }: { call: TraceCall }) {
       <details className={`call ${call.ok ? "" : "failed"}`}>
         <summary>
           <span className="tag tool">công cụ</span> <code>{fmtArgs(call.name, call.args)}</code>{" "}
-          <span className={call.ok ? "okmark" : "badmark"}>{call.ok ? "✓" : "✗"}</span>
+          <span className={call.ok ? "okmark" : "badmark"}><Icon name={call.ok ? "check" : "close"} size={12} /></span>
           <span className="ms">
             {Math.round(call.ms)} ms{call.backend ? ` · ${call.backend}` : ""}
           </span>
@@ -161,7 +162,7 @@ function CallView({ call }: { call: TraceCall }) {
     <details className={`call ${call.ok ? "" : "failed"}`}>
       <summary>
         <span className="tag llm">LLM</span> {call.purpose} · {call.model}{" "}
-        <span className={call.ok ? "okmark" : "badmark"}>{call.ok ? "✓" : "✗"}</span>
+        <span className={call.ok ? "okmark" : "badmark"}><Icon name={call.ok ? "check" : "close"} size={12} /></span>
         <span className="ms">{Math.round(call.ms)} ms</span>
       </summary>
       <div className="kv"><b>Gửi đi:</b></div>

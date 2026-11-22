@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import { useMemo, useState } from "react";
 import { groupConversations, initials } from "./lib";
 import type { AuthUser, ConvSummary } from "./types";
@@ -45,7 +46,7 @@ export function Sidebar(p: Props) {
       <aside className={`sidebar ${p.open ? "open" : ""}`} aria-label="Lịch sử trò chuyện">
         <div className="side-top">
           <div className="logo"><span className="brand-mark sm">T</span> TrustRAG</div>
-          <button className="primary new" onClick={p.onNew}>＋ Cuộc trò chuyện mới</button>
+          <button className="primary new" onClick={p.onNew}><Icon name="plus" /> Cuộc trò chuyện mới</button>
           {p.accounts && (
             <input className="search" type="search" placeholder="Tìm cuộc trò chuyện…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Tìm cuộc trò chuyện" />
           )}
@@ -77,7 +78,7 @@ export function Sidebar(p: Props) {
                     />
                   ) : (
                     <button className="conv-title" onClick={() => p.onSelect(c.id)} onDoubleClick={() => startRename(c)} title={c.title}>
-                      {c.pinned && <span className="pin" aria-label="đã ghim">📌</span>}
+                      {c.pinned && <span className="pin" aria-label="đã ghim"><Icon name="pin" size={12} /></span>}
                       <span>{c.title}</span>
                     </button>
                   )}
@@ -89,9 +90,9 @@ export function Sidebar(p: Props) {
                       </span>
                     ) : (
                       <span className="conv-actions">
-                        <button className="ghost icon" onClick={() => p.onPin(c.id, !c.pinned)} title={c.pinned ? "Bỏ ghim" : "Ghim"} aria-label={c.pinned ? "Bỏ ghim" : "Ghim"}>📌</button>
-                        <button className="ghost icon" onClick={() => startRename(c)} title="Đổi tên" aria-label="Đổi tên">✎</button>
-                        <button className="ghost icon" onClick={() => setConfirming(c.id)} title="Xóa" aria-label="Xóa">🗑</button>
+                        <button className="ghost icon" onClick={() => p.onPin(c.id, !c.pinned)} title={c.pinned ? "Bỏ ghim" : "Ghim"} aria-label={c.pinned ? "Bỏ ghim" : "Ghim"}><Icon name="pin" size={14} /></button>
+                        <button className="ghost icon" onClick={() => startRename(c)} title="Đổi tên" aria-label="Đổi tên"><Icon name="edit" size={14} /></button>
+                        <button className="ghost icon" onClick={() => setConfirming(c.id)} title="Xóa" aria-label="Xóa"><Icon name="trash" size={14} /></button>
                       </span>
                     ))}
                 </div>
@@ -104,9 +105,9 @@ export function Sidebar(p: Props) {
           <div className="side-user">
             {menu && (
               <div className="user-menu" role="menu">
-                <button role="menuitem" onClick={() => { setMenu(false); p.onSettings(); }}>⚙ Cài đặt</button>
-                {p.user.role === "admin" && <button role="menuitem" onClick={() => { setMenu(false); p.onAdmin(); }}>👥 Quản trị người dùng</button>}
-                <button role="menuitem" onClick={() => { setMenu(false); p.onLogout(); }}>⎋ Đăng xuất</button>
+                <button role="menuitem" onClick={() => { setMenu(false); p.onSettings(); }}><Icon name="settings" /> Cài đặt</button>
+                {p.user.role === "admin" && <button role="menuitem" onClick={() => { setMenu(false); p.onAdmin(); }}><Icon name="users" /> Quản trị người dùng</button>}
+                <button role="menuitem" onClick={() => { setMenu(false); p.onLogout(); }}><Icon name="logout" /> Đăng xuất</button>
               </div>
             )}
             <button className="user-btn" onClick={() => setMenu(!menu)} aria-haspopup="menu" aria-expanded={menu}>
