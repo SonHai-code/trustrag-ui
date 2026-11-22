@@ -1,7 +1,20 @@
-import type { AgentStep, ChatResponse, Citation, Health, HistoryMessage, SearchResponse } from "./types";
+import type { AgentStep, ChatResponse, Citation, Health, HistoryMessage, ModelInfo, SearchResponse } from "./types";
 
 // dev: "/api" (proxied by vite.config.ts). Single-container build sets VITE_API_BASE="" (same origin).
 const BASE: string = import.meta.env.VITE_API_BASE ?? "/api";
+
+// The model the user picked (an id from GET /models). The server only accepts ids from its own list: never a URL or a key.
+let selectedModel = "";
+export const setModel = (id: string) => {
+  selectedModel = id;
+};
+const withModel = <T extends object>(body: T): T & { model?: string } => (selectedModel ? { ...body, model: selectedModel } : body);
+
+export async function getModels(): Promise<{ default: string; models: ModelInfo[] }> {
+  const res = await fetch(`${BASE}/models`);
+  if (!res.ok) return fail(res);
+  return res.json();
+}
 
 async function fail(res: Response): Promise<never> {
   let detail = `${res.status} ${res.statusText}`;
@@ -40,7 +53,7 @@ export async function getHealth(): Promise<Health & { points?: number }> {
 }
 
 export const chat = (question: string, top_k: number, signal?: AbortSignal) =>
-  post<ChatResponse>("/chat", { question, top_k }, signal);
+  post<ChatResponse>("/chat", withModel({ question, top_k }), signal);
 
 export const search = (question: string, top_k: number, signal?: AbortSignal) =>
   post<SearchResponse>("/search", { question, top_k }, signal);
@@ -64,7 +77,7 @@ export async function chatStream(
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(history.length ? { question, top_k, history } : { question, top_k }),
+    body: JSON.stringify(withModel(history.length ? { question, top_k, history } : { question, top_k })),
     signal,
   });
   if (!res.ok) return fail(res);

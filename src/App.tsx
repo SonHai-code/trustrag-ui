@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { agentStream, chat, chatStream, getHealth, search } from "./api";
+import { agentStream, chat, chatStream, getHealth, getModels, search, setModel } from "./api";
 import type { StreamHandlers } from "./api";
 import { Markdown } from "./Markdown";
-import type { AgentInfo, AgentStep, ChatResponse, Citation, Health, HistoryMessage, TraceCall } from "./types";
+import type { AgentInfo, AgentStep, ChatResponse, Citation, Health, HistoryMessage, ModelInfo, TraceCall } from "./types";
 
 type Mode = "chat" | "agent" | "search";
 
@@ -53,6 +53,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [health, setHealth] = useState<(Health & { points?: number }) | null>(null);
   const [offline, setOffline] = useState(false);
+  const [modelList, setModelList] = useState<ModelInfo[]>([]);
+  const [modelId, setModelId] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -66,6 +68,35 @@ export default function App() {
   }, []);
 
   useEffect(refreshHealth, [refreshHealth]);
+
+  // The models the server offers; the last choice is remembered per browser (light convenience: storage may be unavailable).
+  useEffect(() => {
+    getModels()
+      .then(({ default: def, models }) => {
+        setModelList(models);
+        let saved = "";
+        try {
+          saved = localStorage.getItem("trustrag.model") ?? "";
+        } catch {
+          /* private mode */
+        }
+        const id = models.some((m) => m.id === saved) ? saved : def;
+        setModelId(id);
+        setModel(id);
+      })
+      .catch(() => setModelList([])); // an older gateway without /models: the single default model is used
+  }, []);
+
+  const chooseModel = (id: string) => {
+    setModelId(id);
+    setModel(id);
+    try {
+      localStorage.setItem("trustrag.model", id);
+    } catch {
+      /* ignore */
+    }
+  };
+
   // Follow the text only while the reader is at (or near) the bottom; never fight a reader who scrolled up.
   const scrollToBottom = useCallback((force = false) => {
     const el = mainRef.current;
@@ -174,6 +205,18 @@ export default function App() {
           <label className={mode !== "chat" ? "disabled" : ""}>
             <input type="checkbox" checked={mode === "chat" ? stream : mode === "agent"} disabled={mode !== "chat"} onChange={(e) => setStream(e.target.checked)} /> Streaming
           </label>
+          {modelList.length > 1 && (
+            <label title="Mô hình ngôn ngữ dùng để trả lời (và cho các bước của agent)">
+              Mô hình
+              <select value={modelId} onChange={(e) => chooseModel(e.target.value)} disabled={busy}>
+                {modelList.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Top-k
             <select value={topK} onChange={(e) => setTopK(Number(e.target.value))}>

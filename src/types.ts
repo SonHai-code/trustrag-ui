@@ -138,3 +138,12 @@ export interface Health {
   llm_provider: string;
   model: string;
 }
+
+/** One selectable model from GET /models (ids and labels only). */
+export interface ModelInfo {
+  id: string;
+  label: string;
+  provider: string;
+  model: string;
+  default: boolean;
+}
