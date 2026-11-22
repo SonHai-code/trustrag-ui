@@ -232,3 +232,7 @@ main { flex: 1; overflow-y: auto; position: relative; scroll-behavior: smooth; }
 .md th { background: var(--bg); font-weight: 600; text-align: left; }
 .md.typing > :last-child::after { content: ""; display: inline-block; width: 7px; height: 15px; background: var(--muted); margin-left: 3px; vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
 .md.typing:empty::after { content: ""; display: inline-block; width: 7px; height: 15px; background: var(--muted); animation: blink 1s steps(2) infinite; }
+
+/* splash / error screens: centre everything, including the button */
+.splash { text-align: center; }
+.splash .primary.inline { align-self: center; }
