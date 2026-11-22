@@ -147,3 +147,96 @@ export interface ModelInfo {
   model: string;
   default: boolean;
 }
+
+// ---------------- accounts, settings and saved conversations (trustrag-user-service) ----------------
+
+export interface Settings {
+  model?: string;
+  mode?: "chat" | "agent" | "search";
+  topK?: number;
+  stream?: boolean;
+  theme?: "light" | "dark" | "system";
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: "user" | "admin";
+  settings?: Settings;
+  createdAt: string;
+}
+
+export interface AuthPayload {
+  user: AuthUser;
+  access_token: string;
+  token_type: "Bearer";
+  expires_in: number; // seconds
+}
+
+export interface ConvSummary {
+  id: string;
+  title: string;
+  pinned: boolean;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** What is saved with an answer: enough to show it again later (the agent trace is not kept: it is large and only for debugging). */
+export interface StoredMeta {
+  v: 1;
+  mode: "chat" | "agent" | "search";
+  model?: string;
+  answer_mode?: string;
+  grounded?: boolean;
+  confidence?: number;
+  refusal_reason?: string | null;
+  retrieval_mode?: string;
+  search_query?: string | null;
+  retrieved?: number;
+  total_ms?: number;
+  retrieval_ms?: number;
+  generation_ms?: number;
+  cached?: boolean;
+  citations?: Citation[];
+  agent?: { route: string | null; llm_calls: number; tools: string; verification: Verification | null; web_note?: string; skills?: string[] };
+}
+
+export interface StoredMessage {
+  id: string;
+  seq: number;
+  role: "user" | "assistant";
+  text: string;
+  meta?: StoredMeta;
+  createdAt: string;
+}
+
+export interface SessionInfo {
+  id: string;
+  userAgent: string;
+  ip: string;
+  createdAt: string;
+  lastUsedAt: string;
+  current: boolean;
+}
+
+export interface AdminUser extends AuthUser {
+  disabled: boolean;
+  lastLoginAt: string;
+}
+
+/** One message on screen (the stored ones and the ones being streamed share this shape). */
+export interface Message {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  citations?: Citation[]; // sources shown under the answer
+  candidates?: boolean; // true while citations are only "retrieved so far" (streaming)
+  meta?: ChatResponse;
+  steps?: AgentStep[]; // agent mode: what the agent did, in order
+  searchMs?: number;
+  error?: string;
+  pending?: boolean;
+  animate?: boolean; // reveal the text progressively (streamed answers only)
+}
