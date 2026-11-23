@@ -197,18 +197,28 @@ function Workspace() {
       return;
     }
     stop();
-    setActiveId(id);
-    setMessages([]);
+    const previousId = activeRef.current;
+    const previousMessages = messages;
     setDrawer(false);
     setLoadingConv(true);
     try {
-      const { messages: stored } = await api.getConversation(id);
-      if (activeRef.current !== id) return; // the user already moved on
-      setMessages(stored.map((m) => restoreMessage(m, nextId++)));
+      // load first: the conversation on screen stays until the new one is ready (and stays if loading fails)
+      const res = await api.getConversation(id);
+      const restored: Message[] = [];
+      for (const m of res.messages ?? []) {
+        try { restored.push(restoreMessage(m, nextId++)); }
+        catch { restored.push({ id: nextId++, role: m.role, text: m.text ?? "" } as Message); }
+      }
+      setActiveId(id);
+      activeRef.current = id;
+      setMessages(restored);
       requestAnimationFrame(() => scrollToBottom(true));
     } catch (e) {
-      notify((e as Error).message);
-      if (activeRef.current === id) setActiveId(null);
+      // never drop to a blank new chat: keep what was open and say what went wrong
+      activeRef.current = previousId;
+      setActiveId(previousId);
+      setMessages(previousMessages);
+      notify(`Không mở được cuộc trò chuyện: ${(e as Error).message}`);
     } finally {
       setLoadingConv(false);
     }
