@@ -191,6 +191,18 @@ function StepDetail({ step }: { step: AgentStep }) {
             </span>
           )}
           {d.why && <div>Lý do: {d.why}</div>}
+          {d.steps && d.steps.length > 0 && (
+            <ol className="loop-steps">
+              {d.steps.map((st, i) => (
+                <li key={i} className={st.ok ? "" : "bad"}>
+                  <code>{st.tool}({JSON.stringify(st.args)})</code>
+                  {st.why ? ` — ${st.why}` : ""}
+                  <div className="kv">{st.ok ? "→" : "✗"} {st.result}</div>
+                </li>
+              ))}
+            </ol>
+          )}
+          {d.stop && <div>Dừng: {d.stop}</div>}
           {d.rewritten && (
             <div>
               «{d.from}» → «{d.to}»
@@ -261,6 +273,8 @@ const STEP_LABELS: Record<string, string> = {
   grade: "Chấm bằng chứng",
   rewrite: "Viết lại truy vấn",
   web: "Tra cứu internet",
+  outline: "Cấu trúc văn bản",
+  investigate: "Vòng lặp công cụ",
   select: "Chọn nguồn",
   fallback: "Chuyển hướng",
   generate: "Sinh câu trả lời",
@@ -295,8 +309,9 @@ function SourceCard({ c, active, onClick }: { c: Citation; active: boolean; onCl
           </>
         ) : (
           <>
-            <strong>{c.doc_label}</strong> · Điều {c.article}
-            {c.article_title ? `. ${c.article_title}` : ""}
+            <strong>{c.doc_label}</strong>
+            {c.article ? ` · Điều ${c.article}` : ""}
+            {c.article_title ? (c.article ? `. ${c.article_title}` : ` · ${c.article_title}`) : ""}
           </>
         )}
         {c.kind !== "web" && <span className="score">{c.score.toFixed(3)}</span>}

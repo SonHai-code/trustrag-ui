@@ -61,6 +61,8 @@ export interface Decision {
   rewritten?: boolean; // contextualize
   from?: string;
   to?: string;
+  steps?: { tool: string; args: Record<string, unknown>; why?: string; ok?: boolean; result?: string }[]; // investigate (tool loop)
+  stop?: string;
 }
 
 /** One step of the agent graph (guard, contextualize, plan, web, retrieve, grade, rewrite, select, generate, verify). */
