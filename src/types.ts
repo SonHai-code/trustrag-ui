@@ -91,6 +91,7 @@ export interface AgentInfo {
   skills?: string[]; // skills added to the answer prompt
   standalone_question?: string | null; // a follow-up rewritten using the conversation history
   history_messages?: number; // earlier messages the agent was given
+  memory?: { total: number; filtered: number; recent: number; relevant_older: number; summarized: number; summary_by: string; focus: string; summary: string };
   web_note?: string; // "no_location" | "error" | "empty" | "": why the internet lookup gave nothing
 }
 

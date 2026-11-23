@@ -209,6 +209,8 @@ function StepTrace({ steps, agent, open }: { steps: AgentStep[]; agent?: AgentIn
   const [copied, setCopied] = useState(false);
   const notes: string[] = [];
   if (agent?.history_messages) notes.push(`nhớ ${agent.history_messages} tin nhắn trước`);
+  if (agent?.memory?.summarized) notes.push(`đã tóm tắt ${agent.memory.summarized} lượt cũ`);
+  if (agent?.memory?.focus) notes.push(`đang bàn: ${agent.memory.focus}`);
   if (agent?.guard && agent.guard.verdict !== "ok") notes.push(`an toàn: ${agent.guard.verdict}`);
   if (agent?.guard?.output_leak) notes.push("đã chặn rò rỉ chỉ dẫn hệ thống");
   if (agent?.skills?.length) notes.push(`kỹ năng: ${agent.skills.join(", ")}`);
@@ -250,7 +252,8 @@ function StepTrace({ steps, agent, open }: { steps: AgentStep[]; agent?: AgentIn
 
 const STEP_LABELS: Record<string, string> = {
   guard: "Kiểm tra an toàn",
-  contextualize: "Nhớ hội thoại",
+  memory: "Bộ nhớ hội thoại",
+  contextualize: "Hiểu câu hỏi nối tiếp",
   skills: "Kỹ năng",
   output_check: "Kiểm tra đầu ra",
   plan: "Lập kế hoạch",

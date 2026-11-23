@@ -80,18 +80,18 @@ test("oversized meta is trimmed by dropping citations, not rejected", () => {
   assert.ok(fitted.citations.length < 10 && fitted.citations.length > 0);
 });
 
-test("history keeps only good chat turns, the last 6", () => {
+test("history keeps only good chat turns, the last 20", () => {
   const msgs = [];
   let id = 1;
   const turn = (q, a, extra = {}) => msgs.push({ id: id++, role: "user", text: q }, { id: id++, role: "assistant", text: a, ...extra });
-  for (let i = 0; i < 8; i++) turn(`q${i}`, `a${i}`);
+  for (let i = 0; i < 22; i++) turn(`q${i}`, `a${i}`);
   turn("bad", "", { error: "x" });
   turn("blocked", "no", { meta: { answer_mode: "blocked" } });
   turn("search", "3 đoạn", { searchMs: 5 });
   const h = buildHistory(msgs);
-  assert.equal(h.length, 12);
+  assert.equal(h.length, 40);
   assert.deepEqual(h[0], { role: "user", content: "q2" });
-  assert.deepEqual(h.at(-1), { role: "assistant", content: "a7" });
+  assert.deepEqual(h.at(-1), { role: "assistant", content: "a21" });
 });
 
 test("email and password checks", () => {

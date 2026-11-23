@@ -120,7 +120,7 @@ export function restoreMessage(sm: StoredMessage, id: number): Message {
   return { id, role: "assistant", text: sm.text, citations: meta.citations, meta };
 }
 
-const MAX_HISTORY = 12; // messages (6 turns) sent to the agent with each question
+const MAX_HISTORY = 40; // messages (20 turns) sent with each question; the agent picks what the model sees and summarises the rest
 
 /** Conversation memory: the agent keeps no state, so every question carries the earlier turns. Failed, refused-by-guard
  *  and search-only turns are left out (they are not part of the conversation the model should follow). */
