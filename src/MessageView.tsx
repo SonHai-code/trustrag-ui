@@ -274,6 +274,7 @@ const STEP_LABELS: Record<string, string> = {
   rewrite: "Viết lại truy vấn",
   web: "Tra cứu internet",
   outline: "Cấu trúc văn bản",
+  understand: "Hiểu câu hỏi",
   investigate: "Vòng lặp công cụ",
   select: "Chọn nguồn",
   fallback: "Chuyển hướng",
